@@ -101,7 +101,7 @@ export class Api {
       try {
         return await fetch(url, {
           ...init,
-          headers: Api.getHeaders(requestType),
+          headers: method === 'GET' ? undefined : Api.getHeaders(requestType),
           signal: controller.signal
         })
       }

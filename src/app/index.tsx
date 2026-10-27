@@ -1,64 +1,30 @@
 import { Cloud, CloudRain, CloudSun, Droplets, Gauge, Search, Sun, Wind } from '@/assets/icons'
 import { useStyles } from '@/hooks/useStyles'
+import { getCities, type City } from '@/services/weather.api'
 import { Image } from 'expo-image'
-import { ScrollView, Text, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Pressable, ScrollView, Text, TextInput, ToastAndroid, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function Index() {
-  const weather = {
-    city: 'Екатеринбург',
-    date: 'Сегодня, 27 октября',
-    temperature: 8,
-    feelsLike: 6,
-    description: 'Переменная облачность',
-    humidity: 64,
-    windSpeed: 3.2,
-    pressure: 748,
-    icon: CloudSun
-  }
-
-  const forecast = [
-    {
-      date: '2026-10-27',
-      title: 'Сегодня',
-      description: 'Ясно',
-      temperatureMax: 10,
-      temperatureMin: 2,
-      icon: Sun
-    },
-    {
-      date: '2026-10-28',
-      title: 'Завтра',
-      description: 'Облачно',
-      temperatureMax: 9,
-      temperatureMin: 3,
-      icon: Cloud
-    },
-    {
-      date: '2026-10-29',
-      title: '29 октября',
-      description: 'Дождь',
-      temperatureMax: 7,
-      temperatureMin: 1,
-      icon: CloudRain
-    }
-  ]
-
-  const weatherDetails = [
-    { title: 'Влажность', value: `${weather.humidity}%`, unit: 'воздуха', icon: Droplets },
-    { title: 'Ветер', value: weather.windSpeed.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
-    { title: 'Давление', value: weather.pressure, unit: 'мм рт. ст.', icon: Gauge }
-  ]
-
   const styles = useStyles((colors) => ({
     container: {
       flex: 1,
       backgroundColor: colors.background
     },
     scroll: {
+      flex: 1,
+      marginTop: 76
+    },
+    weatherContent: {
+      gap: 24,
+      paddingBottom: 24
+    },
+    body: {
       flex: 1
     },
     content: {
+      flex: 1,
       width: '100%',
       maxWidth: 600,
       alignSelf: 'center',
@@ -71,8 +37,58 @@ export default function Index() {
       color: colors.text
     },
     search: {
-      position: 'relative',
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 2
+    },
+    searchField: {
+      height: 52,
       justifyContent: 'center'
+    },
+    searchBackdrop: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 1
+    },
+    searchResults: {
+      marginTop: 8,
+      maxHeight: 280,
+      flexShrink: 1,
+      borderRadius: 20,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)'
+    },
+    searchResultsScroll: {
+      maxHeight: 280,
+      flexGrow: 0
+    },
+    searchResult: {
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      gap: 4
+    },
+    searchResultTitle: {
+      fontSize: 16,
+      color: colors.text
+    },
+    searchResultDescription: {
+      fontSize: 13,
+      color: colors.textSecondary
+    },
+    searchEmpty: {
+      padding: 20,
+      fontSize: 14,
+      color: colors.textSecondary
+    },
+    buttonPressed: {
+      opacity: 0.6
     },
     searchInput: {
       height: 52,
@@ -239,66 +255,205 @@ export default function Index() {
     }
   }))
 
+  const [search, setSearch] = useState('')
+  const [cities, setCities] = useState<City[] | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function searchCities(text: string) {
+    setSearch(text)
+    setCities(null)
+    setIsOpen(true)
+
+    if (searchTimerRef.current !== null) {
+      clearTimeout(searchTimerRef.current)
+      searchTimerRef.current = null
+    }
+
+    if (!text.trim()) return
+
+    const timer = setTimeout(async function () {
+      try {
+        const data = await getCities(text)
+
+        if (searchTimerRef.current !== timer) return
+
+        setCities(data)
+      }
+      catch {
+        if (searchTimerRef.current === timer) {
+          ToastAndroid.show('Не удалось загрузить города. Попробуйте позже', ToastAndroid.SHORT)
+        }
+      }
+      finally {
+        if (searchTimerRef.current === timer) {
+          searchTimerRef.current = null
+        }
+      }
+    }, 200)
+
+    searchTimerRef.current = timer
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current !== null) {
+        clearTimeout(searchTimerRef.current)
+        searchTimerRef.current = null
+      }
+    }
+  }, [])
+
+  const weather = {
+    city: 'Екатеринбург',
+    date: 'Сегодня, 27 октября',
+    temperature: 8,
+    feelsLike: 6,
+    description: 'Переменная облачность',
+    humidity: 64,
+    windSpeed: 3.2,
+    pressure: 748,
+    icon: CloudSun
+  }
+
+  const forecast = [
+    {
+      date: '2026-10-27',
+      title: 'Сегодня',
+      description: 'Ясно',
+      temperatureMax: 10,
+      temperatureMin: 2,
+      icon: Sun
+    },
+    {
+      date: '2026-10-28',
+      title: 'Завтра',
+      description: 'Облачно',
+      temperatureMax: 9,
+      temperatureMin: 3,
+      icon: Cloud
+    },
+    {
+      date: '2026-10-29',
+      title: '29 октября',
+      description: 'Дождь',
+      temperatureMax: 7,
+      temperatureMin: 1,
+      icon: CloudRain
+    }
+  ]
+
+  const weatherDetails = [
+    { title: 'Влажность', value: `${weather.humidity}%`, unit: 'воздуха', icon: Droplets },
+    { title: 'Ветер', value: weather.windSpeed.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
+    { title: 'Давление', value: weather.pressure, unit: 'мм рт. ст.', icon: Gauge }
+  ]
+
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <View style={styles.content}>
         <Text style={styles.title}>Погода</Text>
 
-        <View style={styles.search}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Название города"
-            placeholderTextColor={styles.placeholder.color}
-            returnKeyType="search"
-          />
-          <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
-        </View>
-
-        <View style={styles.weather}>
-          <Text style={styles.city}>{weather.city}</Text>
-          <Text style={styles.weatherDate}>{weather.date}</Text>
-          <View style={styles.weatherMain}>
-            <View style={styles.weatherInfo}>
-              <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
-              <Text style={styles.weatherDescription}>{weather.description}</Text>
-            </View>
-            <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
-          </View>
-          <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
-        </View>
-
-        <View style={styles.details}>
-          {weatherDetails.map(detail => (
-            <View key={detail.title} style={styles.detail}>
-              <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-              <Text style={styles.detailTitle}>{detail.title}</Text>
-              <Text style={styles.detailValue}>{detail.value}</Text>
-              <Text style={styles.detailUnit}>{detail.unit}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.forecast}>
-          <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
-          <View style={styles.forecastHeader}>
-            <Text style={styles.forecastMaxLabel}>Макс.</Text>
-            <Text style={styles.forecastMinLabel}>Мин.</Text>
-          </View>
-          {forecast.map(day => (
-            <View key={day.date} style={styles.forecastDay}>
-              <View style={styles.forecastInfo}>
-                <Text style={styles.forecastDayTitle}>{day.title}</Text>
-                <Text style={styles.forecastDescription}>{day.description}</Text>
+        <View style={styles.body}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.weatherContent}
+            keyboardShouldPersistTaps="always"
+            scrollEnabled={!(isOpen && cities)}
+          >
+            <View style={styles.weather}>
+              <Text style={styles.city}>{weather.city}</Text>
+              <Text style={styles.weatherDate}>{weather.date}</Text>
+              <View style={styles.weatherMain}>
+                <View style={styles.weatherInfo}>
+                  <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
+                  <Text style={styles.weatherDescription}>{weather.description}</Text>
+                </View>
+                <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
               </View>
-              <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-              <View style={styles.forecastTemperatures}>
-                <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
-                <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
-              </View>
+              <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
             </View>
-          ))}
+
+            <View style={styles.details}>
+              {weatherDetails.map(detail => (
+                <View key={detail.title} style={styles.detail}>
+                  <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
+                  <Text style={styles.detailTitle}>{detail.title}</Text>
+                  <Text style={styles.detailValue}>{detail.value}</Text>
+                  <Text style={styles.detailUnit}>{detail.unit}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.forecast}>
+              <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
+              <View style={styles.forecastHeader}>
+                <Text style={styles.forecastMaxLabel}>Макс.</Text>
+                <Text style={styles.forecastMinLabel}>Мин.</Text>
+              </View>
+              {forecast.map(day => (
+                <View key={day.date} style={styles.forecastDay}>
+                  <View style={styles.forecastInfo}>
+                    <Text style={styles.forecastDayTitle}>{day.title}</Text>
+                    <Text style={styles.forecastDescription}>{day.description}</Text>
+                  </View>
+                  <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
+                  <View style={styles.forecastTemperatures}>
+                    <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
+                    <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+
+          {isOpen && cities && (
+            <Pressable style={styles.searchBackdrop} onPress={() => setIsOpen(false)} />
+          )}
+
+          <View style={styles.search} pointerEvents="box-none">
+            <View style={styles.searchField}>
+              <TextInput
+                value={search}
+                onChangeText={searchCities}
+                onFocus={() => setIsOpen(true)}
+                onPressIn={() => setIsOpen(true)}
+                style={styles.searchInput}
+                placeholder="Название города"
+                placeholderTextColor={styles.placeholder.color}
+                returnKeyType="search"
+              />
+              <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
+            </View>
+
+            {isOpen && cities && (
+              <View style={styles.searchResults}>
+                <ScrollView style={styles.searchResultsScroll} keyboardShouldPersistTaps="always" nestedScrollEnabled>
+                  {cities.length === 0 && (
+                    <Text style={styles.searchEmpty}>Ничего не найдено</Text>
+                  )}
+
+                  {cities.length > 0 && cities.map(city => (
+                    <Pressable
+                      key={city.id}
+                      style={({ pressed }) => [styles.searchResult, pressed && styles.buttonPressed]}
+                    >
+                      <Text style={styles.searchResultTitle}>{city.name}</Text>
+                      <Text style={styles.searchResultDescription}>
+                        {city.admin1}
+                        {city.admin1 && city.country && ', '}
+                        {city.country}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   )
 }
