@@ -6,9 +6,16 @@ import { useStyles } from '@/hooks/useStyles'
 import { getCities, getWeather, type City, type Weather } from '@/services/weather.api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Image } from 'expo-image'
+import * as Location from 'expo-location'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+
+type SelectedCity = {
+  name: string
+  latitude: number
+  longitude: number
+}
 
 export default function Index() {
   const styles = useStyles((colors) => ({
@@ -130,7 +137,7 @@ export default function Index() {
   const [search, setSearch] = useState('')
   const [cities, setCities] = useState<City[] | null>(null)
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedCity, setSelectedCity] = useState<City | null>(null)
+  const [selectedCity, setSelectedCity] = useState<SelectedCity | null>(null)
   const [searchBottom, setSearchBottom] = useState(0)
   const [weather, setWeather] = useState<Weather | null>(null)
   const [isWeatherLoading, setIsWeatherLoading] = useState(true)
@@ -173,7 +180,7 @@ export default function Index() {
     searchTimerRef.current = timer
   }
 
-  async function loadWeather(city: City) {
+  async function loadWeather(city: SelectedCity) {
     setIsWeatherLoading(true)
     setIsWeatherLoadError(false)
     setIsOpen(false)
@@ -210,14 +217,27 @@ export default function Index() {
         if (data) {
           const city: City = JSON.parse(data)
           setSelectedCity(city)
+          return
         }
-        else {
+
+        const { status } = await Location.requestForegroundPermissionsAsync()
+
+        if (status !== 'granted') {
           setSelectedCity(defaultCity)
+          return
         }
+
+        const location = await Location.getCurrentPositionAsync()
+        const [address] = await Location.reverseGeocodeAsync(location.coords)
+
+        setSelectedCity({
+          name: address?.city ?? 'Моё местоположение',
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        })
       }
       catch {
         setSelectedCity(defaultCity)
-        showMessage('Не удалось загрузить выбранный город. Попробуйте позже')
       }
     }
 
