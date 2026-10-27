@@ -80,7 +80,7 @@ export async function getWeather(latitude: number, longitude: number): Promise<W
     longitude: String(longitude),
     current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,surface_pressure',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min',
-    forecast_days: '5',
+    forecast_days: '6',
     wind_speed_unit: 'ms',
     timezone: 'auto'
   })

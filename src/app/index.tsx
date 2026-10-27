@@ -1,54 +1,14 @@
-import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Search, Sun, Wind } from '@/assets/icons'
+import { Search } from '@/assets/icons'
+import { WeatherCard, WeatherForecast } from '@/components/WeatherCards'
+import { defaultCity } from '@/constants/weatherConstants'
 import { showMessage } from '@/helpers'
 import { useStyles } from '@/hooks/useStyles'
 import { getCities, getWeather, type City, type Weather } from '@/services/weather.api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Image, type ImageProps } from 'expo-image'
+import { Image } from 'expo-image'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-
-const weatherCodes: Record<number, { description: string, icon: ImageProps['source'], nightIcon?: ImageProps['source'] }> = {
-  [-1]: { description: 'Нет описания', icon: Cloud },
-  0: { description: 'Ясно', icon: Sun, nightIcon: Moon },
-  1: { description: 'Преимущественно ясно', icon: CloudSun, nightIcon: CloudMoon },
-  2: { description: 'Переменная облачность', icon: CloudSun, nightIcon: CloudMoon },
-  3: { description: 'Пасмурно', icon: Cloud },
-  45: { description: 'Туман', icon: CloudFog },
-  48: { description: 'Туман с изморозью', icon: CloudFog },
-  51: { description: 'Слабая морось', icon: CloudDrizzle },
-  53: { description: 'Морось', icon: CloudDrizzle },
-  55: { description: 'Сильная морось', icon: CloudDrizzle },
-  56: { description: 'Слабая переохлаждённая морось', icon: CloudDrizzle },
-  57: { description: 'Сильная переохлаждённая морось', icon: CloudDrizzle },
-  61: { description: 'Небольшой дождь', icon: CloudRain },
-  63: { description: 'Дождь', icon: CloudRain },
-  65: { description: 'Сильный дождь', icon: CloudRain },
-  66: { description: 'Слабый переохлаждённый дождь', icon: CloudRain },
-  67: { description: 'Сильный переохлаждённый дождь', icon: CloudRain },
-  71: { description: 'Небольшой снег', icon: CloudSnow },
-  73: { description: 'Снег', icon: CloudSnow },
-  75: { description: 'Сильный снег', icon: CloudSnow },
-  77: { description: 'Снежные зёрна', icon: CloudSnow },
-  80: { description: 'Небольшой ливень', icon: CloudRain },
-  81: { description: 'Ливень', icon: CloudRain },
-  82: { description: 'Сильный ливень', icon: CloudRain },
-  85: { description: 'Небольшой снежный ливень', icon: CloudSnow },
-  86: { description: 'Сильный снежный ливень', icon: CloudSnow },
-  95: { description: 'Гроза', icon: CloudLightning },
-  96: { description: 'Гроза с небольшим градом', icon: CloudLightning },
-  97: { description: 'Сильная гроза', icon: CloudLightning },
-  99: { description: 'Гроза с сильным градом', icon: CloudLightning }
-}
-
-const defaultCity: City = {
-  id: 524901,
-  name: 'Москва',
-  latitude: 55.75204,
-  longitude: 37.61781,
-  country: 'Россия',
-  admin1: 'Москва'
-}
 
 export default function Index() {
   const styles = useStyles((colors) => ({
@@ -164,150 +124,6 @@ export default function Index() {
     retryButtonText: {
       fontSize: 16,
       color: colors.onPrimary
-    },
-    weather: {
-      padding: 24,
-      borderRadius: 24,
-      backgroundColor: colors.surfaceSoft
-    },
-    city: {
-      fontSize: 22,
-      fontWeight: '600',
-      color: colors.text
-    },
-    weatherDate: {
-      marginTop: 6,
-      fontSize: 14,
-      color: colors.textSecondary
-    },
-    weatherMain: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 16,
-      marginTop: 20
-    },
-    weatherInfo: {
-      flex: 1,
-      gap: 4
-    },
-    temperature: {
-      fontSize: 56,
-      fontWeight: '600',
-      color: colors.text
-    },
-    weatherDescription: {
-      fontSize: 16,
-      lineHeight: 22,
-      color: colors.textSecondary
-    },
-    weatherFeelsLike: {
-      marginTop: 16,
-      fontSize: 14,
-      color: colors.textSecondary
-    },
-    weatherIcon: {
-      width: 76,
-      height: 76,
-      tintColor: colors.primary
-    },
-    details: {
-      flexDirection: 'row',
-      gap: 12
-    },
-    detail: {
-      flex: 1,
-      minWidth: 0,
-      alignItems: 'center',
-      paddingHorizontal: 4,
-      paddingVertical: 16,
-      gap: 8,
-      borderRadius: 20,
-      backgroundColor: colors.surfaceSoft
-    },
-    detailIcon: {
-      width: 24,
-      height: 24,
-      tintColor: colors.primary
-    },
-    detailTitle: {
-      fontSize: 12,
-      color: colors.textSecondary
-    },
-    detailValue: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text
-    },
-    detailUnit: {
-      fontSize: 12,
-      color: colors.textSecondary
-    },
-    forecast: {
-      gap: 12
-    },
-    forecastTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: colors.text
-    },
-    forecastHeader: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 12
-    },
-    forecastMaxLabel: {
-      width: 40,
-      textAlign: 'right',
-      fontSize: 12,
-      color: colors.textSecondary
-    },
-    forecastMinLabel: {
-      width: 32,
-      textAlign: 'right',
-      fontSize: 12,
-      color: colors.textSecondary
-    },
-    forecastDay: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12
-    },
-    forecastInfo: {
-      flex: 1,
-      gap: 4
-    },
-    forecastDayTitle: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.text
-    },
-    forecastDescription: {
-      fontSize: 14,
-      color: colors.textSecondary
-    },
-    forecastIcon: {
-      width: 32,
-      height: 32,
-      tintColor: colors.primary
-    },
-    forecastTemperatures: {
-      flexDirection: 'row',
-      gap: 12
-    },
-    forecastMax: {
-      width: 40,
-      textAlign: 'right',
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text
-    },
-    forecastMin: {
-      width: 32,
-      textAlign: 'right',
-      fontSize: 16,
-      color: colors.textSecondary
     }
   }))
 
@@ -411,7 +227,6 @@ export default function Index() {
   useEffect(() => {
     if (!selectedCity) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWeather(selectedCity)
   }, [selectedCity])
 
@@ -423,31 +238,6 @@ export default function Index() {
       }
     }
   }, [])
-
-  const weatherInfo = weatherCodes[weather?.current.weather_code ?? -1] ?? weatherCodes[-1]
-
-  const forecast = weather?.daily.time.map((date, index) => {
-    const info = weatherCodes[weather.daily.weather_code[index]] ?? weatherCodes[-1]
-    let title = new Date(`${date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
-
-    if (index === 0) title = 'Сегодня'
-    if (index === 1) title = 'Завтра'
-
-    return {
-      date,
-      title,
-      description: info.description,
-      temperatureMax: Math.round(weather.daily.temperature_2m_max[index]),
-      temperatureMin: Math.round(weather.daily.temperature_2m_min[index]),
-      icon: info.icon
-    }
-  })
-
-  const weatherDetails = weather && [
-    { title: 'Влажность', value: `${weather.current.relative_humidity_2m}%`, unit: 'воздуха', icon: Droplets },
-    { title: 'Ветер', value: weather.current.wind_speed_10m.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
-    { title: 'Давление', value: Math.round(weather.current.surface_pressure * 0.750062), unit: 'мм рт. ст.', icon: Gauge }
-  ]
 
   return (
     <SafeAreaView style={styles.container}>
@@ -530,61 +320,8 @@ export default function Index() {
 
         {!isWeatherLoading && !isWeatherLoadError && weather && (
           <>
-            <View style={styles.weather}>
-              <Text style={styles.city}>{selectedCity?.name}</Text>
-              <Text style={styles.weatherDate}>
-                {new Date(`${weather.current.time.split('T')[0]}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-              </Text>
-              <View style={styles.weatherMain}>
-                <View style={styles.weatherInfo}>
-                  <Text style={styles.temperature}>
-                    {Math.round(weather.current.temperature_2m) > 0 && '+'}{Math.round(weather.current.temperature_2m)}°
-                  </Text>
-                  <Text style={styles.weatherDescription}>{weatherInfo.description}</Text>
-                </View>
-                <Image
-                  source={(weather.current.is_day === 0 && weatherInfo.nightIcon) || weatherInfo.icon}
-                  style={styles.weatherIcon}
-                  tintColor={styles.weatherIcon.tintColor}
-                  contentFit="contain"
-                />
-              </View>
-              <Text style={styles.weatherFeelsLike}>
-                Ощущается как {Math.round(weather.current.apparent_temperature) > 0 && '+'}{Math.round(weather.current.apparent_temperature)}°
-              </Text>
-            </View>
-
-            <View style={styles.details}>
-              {weatherDetails?.map(detail => (
-                <View key={detail.title} style={styles.detail}>
-                  <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-                  <Text style={styles.detailTitle}>{detail.title}</Text>
-                  <Text style={styles.detailValue}>{detail.value}</Text>
-                  <Text style={styles.detailUnit}>{detail.unit}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.forecast}>
-              <Text style={styles.forecastTitle}>Прогноз на 5 дней</Text>
-              <View style={styles.forecastHeader}>
-                <Text style={styles.forecastMaxLabel}>Макс.</Text>
-                <Text style={styles.forecastMinLabel}>Мин.</Text>
-              </View>
-              {forecast?.map(day => (
-                <View key={day.date} style={styles.forecastDay}>
-                  <View style={styles.forecastInfo}>
-                    <Text style={styles.forecastDayTitle}>{day.title}</Text>
-                    <Text style={styles.forecastDescription}>{day.description}</Text>
-                  </View>
-                  <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-                  <View style={styles.forecastTemperatures}>
-                    <Text style={styles.forecastMax}>{day.temperatureMax > 0 && '+'}{day.temperatureMax}°</Text>
-                    <Text style={styles.forecastMin}>{day.temperatureMin > 0 && '+'}{day.temperatureMin}°</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
+            <WeatherCard city={selectedCity?.name} current={weather.current} />
+            <WeatherForecast daily={weather.daily} />
           </>
         )}
       </ScrollView>
