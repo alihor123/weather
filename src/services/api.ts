@@ -82,11 +82,13 @@ export class Api {
     requestType: 'json' | 'file' = 'json'
   ): Promise<Response> {
 
-    if (!Api.baseUrl) {
+    const isAbsoluteUrl = path.startsWith('https://') || path.startsWith('http://')
+
+    if (!isAbsoluteUrl && !Api.baseUrl) {
       throw new ApiError('Не задан адрес API в EXPO_PUBLIC_API_URL')
     }
 
-    const url = `${Api.baseUrl}${path}`
+    const url = isAbsoluteUrl ? path : `${Api.baseUrl}${path}`
     const method = init.method ?? 'GET'
 
     // больше временя для POST и PATHС
