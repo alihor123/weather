@@ -5,6 +5,51 @@ import { ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function Index() {
+  const weather = {
+    city: 'Екатеринбург',
+    date: 'Сегодня, 27 октября',
+    temperature: 8,
+    feelsLike: 6,
+    description: 'Переменная облачность',
+    humidity: 64,
+    windSpeed: 3.2,
+    pressure: 748,
+    icon: CloudSun
+  }
+
+  const forecast = [
+    {
+      date: '2026-10-27',
+      title: 'Сегодня',
+      description: 'Ясно',
+      temperatureMax: 10,
+      temperatureMin: 2,
+      icon: Sun
+    },
+    {
+      date: '2026-10-28',
+      title: 'Завтра',
+      description: 'Облачно',
+      temperatureMax: 9,
+      temperatureMin: 3,
+      icon: Cloud
+    },
+    {
+      date: '2026-10-29',
+      title: '29 октября',
+      description: 'Дождь',
+      temperatureMax: 7,
+      temperatureMin: 1,
+      icon: CloudRain
+    }
+  ]
+
+  const weatherDetails = [
+    { title: 'Влажность', value: `${weather.humidity}%`, unit: 'воздуха', icon: Droplets },
+    { title: 'Ветер', value: weather.windSpeed.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
+    { title: 'Давление', value: weather.pressure, unit: 'мм рт. ст.', icon: Gauge }
+  ]
+
   const styles = useStyles((colors) => ({
     container: {
       flex: 1,
@@ -84,6 +129,11 @@ export default function Index() {
       lineHeight: 22,
       color: colors.textSecondary
     },
+    weatherFeelsLike: {
+      marginTop: 16,
+      fontSize: 14,
+      color: colors.textSecondary
+    },
     weatherIcon: {
       width: 76,
       height: 76,
@@ -128,6 +178,23 @@ export default function Index() {
       fontSize: 20,
       fontWeight: '600',
       color: colors.text
+    },
+    forecastHeader: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12
+    },
+    forecastMaxLabel: {
+      width: 40,
+      textAlign: 'right',
+      fontSize: 12,
+      color: colors.textSecondary
+    },
+    forecastMinLabel: {
+      width: 32,
+      textAlign: 'right',
+      fontSize: 12,
+      color: colors.textSecondary
     },
     forecastDay: {
       flexDirection: 'row',
@@ -188,73 +255,48 @@ export default function Index() {
         </View>
 
         <View style={styles.weather}>
-          <Text style={styles.city}>Екатеринбург</Text>
-          <Text style={styles.weatherDate}>Сегодня, 27 октября</Text>
+          <Text style={styles.city}>{weather.city}</Text>
+          <Text style={styles.weatherDate}>{weather.date}</Text>
           <View style={styles.weatherMain}>
             <View style={styles.weatherInfo}>
-              <Text style={styles.temperature}>+8°</Text>
-              <Text style={styles.weatherDescription}>Переменная облачность</Text>
+              <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
+              <Text style={styles.weatherDescription}>{weather.description}</Text>
             </View>
-            <Image source={CloudSun} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
+            <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
           </View>
+          <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
         </View>
 
         <View style={styles.details}>
-          <View style={styles.detail}>
-            <Image source={Droplets} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-            <Text style={styles.detailTitle}>Влажность</Text>
-            <Text style={styles.detailValue}>64%</Text>
-            <Text style={styles.detailUnit}>воздуха</Text>
-          </View>
-          <View style={styles.detail}>
-            <Image source={Wind} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-            <Text style={styles.detailTitle}>Ветер</Text>
-            <Text style={styles.detailValue}>3,2</Text>
-            <Text style={styles.detailUnit}>м/с</Text>
-          </View>
-          <View style={styles.detail}>
-            <Image source={Gauge} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-            <Text style={styles.detailTitle}>Давление</Text>
-            <Text style={styles.detailValue}>748</Text>
-            <Text style={styles.detailUnit}>мм рт. ст.</Text>
-          </View>
+          {weatherDetails.map(detail => (
+            <View key={detail.title} style={styles.detail}>
+              <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
+              <Text style={styles.detailTitle}>{detail.title}</Text>
+              <Text style={styles.detailValue}>{detail.value}</Text>
+              <Text style={styles.detailUnit}>{detail.unit}</Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.forecast}>
           <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
-          <View style={styles.forecastDay}>
-            <View style={styles.forecastInfo}>
-              <Text style={styles.forecastDayTitle}>Сегодня</Text>
-              <Text style={styles.forecastDescription}>Ясно</Text>
-            </View>
-            <Image source={Sun} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-            <View style={styles.forecastTemperatures}>
-              <Text style={styles.forecastMax}>+10°</Text>
-              <Text style={styles.forecastMin}>+2°</Text>
-            </View>
+          <View style={styles.forecastHeader}>
+            <Text style={styles.forecastMaxLabel}>Макс.</Text>
+            <Text style={styles.forecastMinLabel}>Мин.</Text>
           </View>
-          <View style={styles.forecastDay}>
-            <View style={styles.forecastInfo}>
-              <Text style={styles.forecastDayTitle}>Завтра</Text>
-              <Text style={styles.forecastDescription}>Облачно</Text>
+          {forecast.map(day => (
+            <View key={day.date} style={styles.forecastDay}>
+              <View style={styles.forecastInfo}>
+                <Text style={styles.forecastDayTitle}>{day.title}</Text>
+                <Text style={styles.forecastDescription}>{day.description}</Text>
+              </View>
+              <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
+              <View style={styles.forecastTemperatures}>
+                <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
+                <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
+              </View>
             </View>
-            <Image source={Cloud} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-            <View style={styles.forecastTemperatures}>
-              <Text style={styles.forecastMax}>+9°</Text>
-              <Text style={styles.forecastMin}>+3°</Text>
-            </View>
-          </View>
-          <View style={styles.forecastDay}>
-            <View style={styles.forecastInfo}>
-              <Text style={styles.forecastDayTitle}>29 октября</Text>
-              <Text style={styles.forecastDescription}>Дождь</Text>
-            </View>
-            <Image source={CloudRain} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-            <View style={styles.forecastTemperatures}>
-              <Text style={styles.forecastMax}>+7°</Text>
-              <Text style={styles.forecastMin}>+1°</Text>
-            </View>
-          </View>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
