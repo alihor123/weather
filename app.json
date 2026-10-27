@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Погода",
+    "slug": "weather",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "weather",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.anonymous.weather"
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.weather"
+    },
+    "web": {
+      "output": "static"
+    },
+    "plugins": ["expo-router", "expo-image"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
