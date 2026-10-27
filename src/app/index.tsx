@@ -1,12 +1,45 @@
-import { Cloud, CloudRain, CloudSun, Droplets, Gauge, Search, Sun, Wind } from '@/assets/icons'
+import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Search, Sun, Wind } from '@/assets/icons'
 import { showMessage } from '@/helpers'
 import { useStyles } from '@/hooks/useStyles'
-import { getCities, type City } from '@/services/weather.api'
+import { getCities, getWeather, type City, type Weather } from '@/services/weather.api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Image } from 'expo-image'
+import { Image, type ImageProps } from 'expo-image'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+
+const weatherCodes: Record<number, { description: string, icon: ImageProps['source'], nightIcon?: ImageProps['source'] }> = {
+  [-1]: { description: 'Нет описания', icon: Cloud },
+  0: { description: 'Ясно', icon: Sun, nightIcon: Moon },
+  1: { description: 'Преимущественно ясно', icon: CloudSun, nightIcon: CloudMoon },
+  2: { description: 'Переменная облачность', icon: CloudSun, nightIcon: CloudMoon },
+  3: { description: 'Пасмурно', icon: Cloud },
+  45: { description: 'Туман', icon: CloudFog },
+  48: { description: 'Туман с изморозью', icon: CloudFog },
+  51: { description: 'Слабая морось', icon: CloudDrizzle },
+  53: { description: 'Морось', icon: CloudDrizzle },
+  55: { description: 'Сильная морось', icon: CloudDrizzle },
+  56: { description: 'Слабая переохлаждённая морось', icon: CloudDrizzle },
+  57: { description: 'Сильная переохлаждённая морось', icon: CloudDrizzle },
+  61: { description: 'Небольшой дождь', icon: CloudRain },
+  63: { description: 'Дождь', icon: CloudRain },
+  65: { description: 'Сильный дождь', icon: CloudRain },
+  66: { description: 'Слабый переохлаждённый дождь', icon: CloudRain },
+  67: { description: 'Сильный переохлаждённый дождь', icon: CloudRain },
+  71: { description: 'Небольшой снег', icon: CloudSnow },
+  73: { description: 'Снег', icon: CloudSnow },
+  75: { description: 'Сильный снег', icon: CloudSnow },
+  77: { description: 'Снежные зёрна', icon: CloudSnow },
+  80: { description: 'Небольшой ливень', icon: CloudRain },
+  81: { description: 'Ливень', icon: CloudRain },
+  82: { description: 'Сильный ливень', icon: CloudRain },
+  85: { description: 'Небольшой снежный ливень', icon: CloudSnow },
+  86: { description: 'Сильный снежный ливень', icon: CloudSnow },
+  95: { description: 'Гроза', icon: CloudLightning },
+  96: { description: 'Гроза с небольшим градом', icon: CloudLightning },
+  97: { description: 'Сильная гроза', icon: CloudLightning },
+  99: { description: 'Гроза с сильным градом', icon: CloudLightning }
+}
 
 const defaultCity: City = {
   id: 524901,
@@ -28,6 +61,7 @@ export default function Index() {
     },
     content: {
       minHeight: '100%',
+      flexGrow: 1,
       width: '100%',
       maxWidth: 600,
       alignSelf: 'center',
@@ -105,6 +139,31 @@ export default function Index() {
       width: 24,
       height: 24,
       tintColor: colors.textSecondary
+    },
+    weatherStatus: {
+      flex: 1,
+      minHeight: 200,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16
+    },
+    loader: {
+      color: colors.primary
+    },
+    weatherError: {
+      fontSize: 16,
+      textAlign: 'center',
+      color: colors.textSecondary
+    },
+    retryButton: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 999,
+      backgroundColor: colors.primary
+    },
+    retryButtonText: {
+      fontSize: 16,
+      color: colors.onPrimary
     },
     weather: {
       padding: 24,
@@ -257,6 +316,9 @@ export default function Index() {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedCity, setSelectedCity] = useState<City | null>(null)
   const [searchBottom, setSearchBottom] = useState(0)
+  const [weather, setWeather] = useState<Weather | null>(null)
+  const [isWeatherLoading, setIsWeatherLoading] = useState(true)
+  const [isWeatherLoadError, setIsWeatherLoadError] = useState(false)
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -295,10 +357,27 @@ export default function Index() {
     searchTimerRef.current = timer
   }
 
+  async function loadWeather(city: City) {
+    setIsWeatherLoading(true)
+    setIsWeatherLoadError(false)
+    setIsOpen(false)
+
+    try {
+      const data = await getWeather(city.latitude, city.longitude)
+      setWeather(data)
+    }
+    catch {
+      setIsWeatherLoadError(true)
+    }
+    finally {
+      setIsWeatherLoading(false)
+    }
+  }
+
   async function selectCity(city: City) {
     try {
       await AsyncStorage.setItem('city', JSON.stringify(city))
-      setSelectedCity(city)
+      setSelectedCity({ ...city })
       setSearch(city.name)
       setIsOpen(false)
     }
@@ -330,6 +409,13 @@ export default function Index() {
   }, [])
 
   useEffect(() => {
+    if (!selectedCity) return
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadWeather(selectedCity)
+  }, [selectedCity])
+
+  useEffect(() => {
     return () => {
       if (searchTimerRef.current !== null) {
         clearTimeout(searchTimerRef.current)
@@ -338,49 +424,29 @@ export default function Index() {
     }
   }, [])
 
-  const weather = {
-    city: 'Екатеринбург',
-    date: 'Сегодня, 27 октября',
-    temperature: 8,
-    feelsLike: 6,
-    description: 'Переменная облачность',
-    humidity: 64,
-    windSpeed: 3.2,
-    pressure: 748,
-    icon: CloudSun
-  }
+  const weatherInfo = weatherCodes[weather?.current.weather_code ?? -1] ?? weatherCodes[-1]
 
-  const forecast = [
-    {
-      date: '2026-10-27',
-      title: 'Сегодня',
-      description: 'Ясно',
-      temperatureMax: 10,
-      temperatureMin: 2,
-      icon: Sun
-    },
-    {
-      date: '2026-10-28',
-      title: 'Завтра',
-      description: 'Облачно',
-      temperatureMax: 9,
-      temperatureMin: 3,
-      icon: Cloud
-    },
-    {
-      date: '2026-10-29',
-      title: '29 октября',
-      description: 'Дождь',
-      temperatureMax: 7,
-      temperatureMin: 1,
-      icon: CloudRain
+  const forecast = weather?.daily.time.map((date, index) => {
+    const info = weatherCodes[weather.daily.weather_code[index]] ?? weatherCodes[-1]
+    let title = new Date(`${date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+
+    if (index === 0) title = 'Сегодня'
+    if (index === 1) title = 'Завтра'
+
+    return {
+      date,
+      title,
+      description: info.description,
+      temperatureMax: Math.round(weather.daily.temperature_2m_max[index]),
+      temperatureMin: Math.round(weather.daily.temperature_2m_min[index]),
+      icon: info.icon
     }
-  ]
+  })
 
-  const weatherDetails = [
-    { title: 'Влажность', value: `${weather.humidity}%`, unit: 'воздуха', icon: Droplets },
-    { title: 'Ветер', value: weather.windSpeed.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
-    { title: 'Давление', value: weather.pressure, unit: 'мм рт. ст.', icon: Gauge }
+  const weatherDetails = weather && [
+    { title: 'Влажность', value: `${weather.current.relative_humidity_2m}%`, unit: 'воздуха', icon: Droplets },
+    { title: 'Ветер', value: weather.current.wind_speed_10m.toLocaleString('ru-RU'), unit: 'м/с', icon: Wind },
+    { title: 'Давление', value: Math.round(weather.current.surface_pressure * 0.750062), unit: 'мм рт. ст.', icon: Gauge }
   ]
 
   return (
@@ -399,6 +465,7 @@ export default function Index() {
         >
           <TextInput
             value={search}
+            editable={!isWeatherLoading}
             onChangeText={searchCities}
             onFocus={() => setIsOpen(true)}
             onPressIn={() => setIsOpen(true)}
@@ -410,7 +477,7 @@ export default function Index() {
           <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
         </View>
 
-        {isOpen && cities && (
+        {!isWeatherLoading && isOpen && cities && (
           <View style={[styles.searchResults, { top: searchBottom + 8 }]}>
             <ScrollView
               style={styles.searchResultsScroll}
@@ -439,54 +506,87 @@ export default function Index() {
           </View>
         )}
 
-        {isOpen && cities && (
+        {!isWeatherLoading && isOpen && cities && (
           <Pressable style={styles.searchBackdrop} onPress={() => setIsOpen(false)} />
         )}
 
-        <View style={styles.weather}>
-          <Text style={styles.city}>{weather.city}</Text>
-          <Text style={styles.weatherDate}>{weather.date}</Text>
-          <View style={styles.weatherMain}>
-            <View style={styles.weatherInfo}>
-              <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
-              <Text style={styles.weatherDescription}>{weather.description}</Text>
-            </View>
-            <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
+        {isWeatherLoading && (
+          <View style={styles.weatherStatus}>
+            <ActivityIndicator size="large" color={styles.loader.color} />
           </View>
-          <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
-        </View>
+        )}
 
-        <View style={styles.details}>
-          {weatherDetails.map(detail => (
-            <View key={detail.title} style={styles.detail}>
-              <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-              <Text style={styles.detailTitle}>{detail.title}</Text>
-              <Text style={styles.detailValue}>{detail.value}</Text>
-              <Text style={styles.detailUnit}>{detail.unit}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.forecast}>
-          <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
-          <View style={styles.forecastHeader}>
-            <Text style={styles.forecastMaxLabel}>Макс.</Text>
-            <Text style={styles.forecastMinLabel}>Мин.</Text>
+        {!isWeatherLoading && isWeatherLoadError && (
+          <View style={styles.weatherStatus}>
+            <Text style={styles.weatherError}>Не удалось загрузить погоду</Text>
+            <Pressable
+              onPress={() => selectedCity && loadWeather(selectedCity)}
+              style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.retryButtonText}>Повторить</Text>
+            </Pressable>
           </View>
-          {forecast.map(day => (
-            <View key={day.date} style={styles.forecastDay}>
-              <View style={styles.forecastInfo}>
-                <Text style={styles.forecastDayTitle}>{day.title}</Text>
-                <Text style={styles.forecastDescription}>{day.description}</Text>
+        )}
+
+        {!isWeatherLoading && !isWeatherLoadError && weather && (
+          <>
+            <View style={styles.weather}>
+              <Text style={styles.city}>{selectedCity?.name}</Text>
+              <Text style={styles.weatherDate}>
+                {new Date(`${weather.current.time.split('T')[0]}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              </Text>
+              <View style={styles.weatherMain}>
+                <View style={styles.weatherInfo}>
+                  <Text style={styles.temperature}>
+                    {Math.round(weather.current.temperature_2m) > 0 && '+'}{Math.round(weather.current.temperature_2m)}°
+                  </Text>
+                  <Text style={styles.weatherDescription}>{weatherInfo.description}</Text>
+                </View>
+                <Image
+                  source={(weather.current.is_day === 0 && weatherInfo.nightIcon) || weatherInfo.icon}
+                  style={styles.weatherIcon}
+                  tintColor={styles.weatherIcon.tintColor}
+                  contentFit="contain"
+                />
               </View>
-              <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-              <View style={styles.forecastTemperatures}>
-                <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
-                <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
-              </View>
+              <Text style={styles.weatherFeelsLike}>
+                Ощущается как {Math.round(weather.current.apparent_temperature) > 0 && '+'}{Math.round(weather.current.apparent_temperature)}°
+              </Text>
             </View>
-          ))}
-        </View>
+
+            <View style={styles.details}>
+              {weatherDetails?.map(detail => (
+                <View key={detail.title} style={styles.detail}>
+                  <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
+                  <Text style={styles.detailTitle}>{detail.title}</Text>
+                  <Text style={styles.detailValue}>{detail.value}</Text>
+                  <Text style={styles.detailUnit}>{detail.unit}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.forecast}>
+              <Text style={styles.forecastTitle}>Прогноз на 5 дней</Text>
+              <View style={styles.forecastHeader}>
+                <Text style={styles.forecastMaxLabel}>Макс.</Text>
+                <Text style={styles.forecastMinLabel}>Мин.</Text>
+              </View>
+              {forecast?.map(day => (
+                <View key={day.date} style={styles.forecastDay}>
+                  <View style={styles.forecastInfo}>
+                    <Text style={styles.forecastDayTitle}>{day.title}</Text>
+                    <Text style={styles.forecastDescription}>{day.description}</Text>
+                  </View>
+                  <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
+                  <View style={styles.forecastTemperatures}>
+                    <Text style={styles.forecastMax}>{day.temperatureMax > 0 && '+'}{day.temperatureMax}°</Text>
+                    <Text style={styles.forecastMin}>{day.temperatureMin > 0 && '+'}{day.temperatureMin}°</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
