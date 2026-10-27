@@ -1,25 +1,52 @@
-import { Droplets, Gauge, Wind } from '@/assets/icons'
+import { Droplets, Gauge, Star, StarFilled, Wind } from '@/assets/icons'
 import { weatherCodes } from '@/constants/weatherConstants'
 import { useStyles } from '@/hooks/useStyles'
 import type { Weather } from '@/services/weather.api'
 import { Image } from 'expo-image'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 type WeatherCardProps = {
   city: string | undefined
   current: Weather['current']
+  isFavorite: boolean
+  showFavoriteButton: boolean
+  onChangeFavorite: () => void
 }
 
 type WeatherForecastProps = {
   daily: Weather['daily']
 }
 
-export function WeatherCard({ city, current }: WeatherCardProps) {
+export function WeatherCard({ city, current, isFavorite, showFavoriteButton, onChangeFavorite }: WeatherCardProps) {
   const styles = useStyles((colors) => ({
     weather: {
       padding: 24,
       borderRadius: 24,
       backgroundColor: colors.surfaceSoft
+    },
+    weatherHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12
+    },
+    weatherHeaderInfo: {
+      flex: 1
+    },
+    favoriteButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999
+    },
+    favoriteIcon: {
+      width: 28,
+      height: 28,
+      tintColor: colors.primary
+    },
+    buttonPressed: {
+      opacity: 0.6
     },
     city: {
       fontSize: 22,
@@ -107,10 +134,27 @@ export function WeatherCard({ city, current }: WeatherCardProps) {
   return (
     <>
       <View style={styles.weather}>
-        <Text style={styles.city}>{city}</Text>
-        <Text style={styles.weatherDate}>
-          {new Date(`${current.time.split('T')[0]}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-        </Text>
+        <View style={styles.weatherHeader}>
+          <View style={styles.weatherHeaderInfo}>
+            <Text style={styles.city}>{city}</Text>
+            <Text style={styles.weatherDate}>
+              {new Date(`${current.time.split('T')[0]}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+            </Text>
+          </View>
+          {showFavoriteButton && (
+            <Pressable
+              onPress={onChangeFavorite}
+              style={({ pressed }) => [styles.favoriteButton, pressed && styles.buttonPressed]}
+            >
+              <Image
+                source={isFavorite ? StarFilled : Star}
+                style={styles.favoriteIcon}
+                tintColor={styles.favoriteIcon.tintColor}
+                contentFit="contain"
+              />
+            </Pressable>
+          )}
+        </View>
         <View style={styles.weatherMain}>
           <View style={styles.weatherInfo}>
             <Text style={styles.temperature}>

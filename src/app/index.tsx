@@ -1,4 +1,4 @@
-import { Search } from '@/assets/icons'
+import { Search, StarFilled } from '@/assets/icons'
 import { WeatherCard, WeatherForecast } from '@/components/WeatherCards'
 import { defaultCity } from '@/constants/weatherConstants'
 import { showMessage } from '@/helpers'
@@ -12,6 +12,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 type SelectedCity = {
+  id?: number
   name: string
   latitude: number
   longitude: number
@@ -34,6 +35,21 @@ export default function Index() {
       alignSelf: 'center',
       padding: 24,
       gap: 24
+    },
+    favoriteResult: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12
+    },
+    favoriteResultInfo: {
+      flex: 1,
+      gap: 4
+    },
+    favoriteResultIcon: {
+      width: 20,
+      height: 20,
+      tintColor: colors.primary
     },
     title: {
       fontSize: 24,
@@ -136,6 +152,7 @@ export default function Index() {
 
   const [search, setSearch] = useState('')
   const [cities, setCities] = useState<City[] | null>(null)
+  const [favoriteCities, setFavoriteCities] = useState<City[] | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [selectedCity, setSelectedCity] = useState<SelectedCity | null>(null)
   const [searchBottom, setSearchBottom] = useState(0)
@@ -144,6 +161,45 @@ export default function Index() {
   const [isWeatherLoadError, setIsWeatherLoadError] = useState(false)
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function isFavorite(city: SelectedCity) {
+    return favoriteCities?.some(favorite => favorite.id === city.id) ?? false
+  }
+
+  async function changeFavorite() {
+    if (!selectedCity) return
+
+    const id = selectedCity.id
+
+    if (!id) return
+
+    try {
+      const data = await AsyncStorage.getItem('favorites')
+      const newFavorites: City[] = data ? JSON.parse(data) : []
+
+      const index = newFavorites.findIndex(favorite => favorite.id === id)
+
+      if (index !== -1) {
+        newFavorites.splice(index, 1)
+      }
+      else {
+        const favoriteCity: City = { ...selectedCity, id }
+
+        if (newFavorites.length < 3) {
+          newFavorites.push(favoriteCity)
+        }
+        else {
+          newFavorites[newFavorites.length - 1] = favoriteCity
+        }
+      }
+
+      await AsyncStorage.setItem('favorites', JSON.stringify(newFavorites))
+      setFavoriteCities(newFavorites)
+    }
+    catch {
+      showMessage('Не удалось сохранить избранное. Попробуйте позже')
+    }
+  }
 
   function searchCities(text: string) {
     setSearch(text)
@@ -197,7 +253,7 @@ export default function Index() {
     }
   }
 
-  async function selectCity(city: City) {
+  async function selectCity(city: SelectedCity) {
     try {
       await AsyncStorage.setItem('city', JSON.stringify(city))
       setSelectedCity({ ...city })
@@ -210,12 +266,32 @@ export default function Index() {
   }
 
   useEffect(() => {
+    async function loadFavoriteCities() {
+      try {
+        const data = await AsyncStorage.getItem('favorites')
+
+        if (data) {
+          setFavoriteCities(JSON.parse(data))
+        }
+        else {
+          setFavoriteCities([])
+        }
+      }
+      catch {
+        showMessage('Не удалось загрузить избранное. Попробуйте позже')
+      }
+    }
+
+    loadFavoriteCities()
+  }, [])
+
+  useEffect(() => {
     async function loadCity() {
       try {
         const data = await AsyncStorage.getItem('city')
 
         if (data) {
-          const city: City = JSON.parse(data)
+          const city: SelectedCity = JSON.parse(data)
           setSelectedCity(city)
           return
         }
@@ -287,18 +363,37 @@ export default function Index() {
           <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
         </View>
 
-        {!isWeatherLoading && isOpen && cities && (
+        {!isWeatherLoading && isOpen && (cities !== null || (favoriteCities && favoriteCities.length > 0)) && (
           <View style={[styles.searchResults, { top: searchBottom + 8 }]}>
             <ScrollView
               style={styles.searchResultsScroll}
               keyboardShouldPersistTaps="always"
               nestedScrollEnabled
             >
-              {cities.length === 0 && (
+              {favoriteCities && favoriteCities.map(city => (
+                <Pressable
+                  key={city.id}
+                  onPress={() => selectCity(city)}
+                  style={({ pressed }) => [styles.searchResult, styles.favoriteResult, pressed && styles.buttonPressed]}
+                >
+                  <View style={styles.favoriteResultInfo}>
+                    <Text style={styles.searchResultTitle}>{city.name}</Text>
+                    <Text style={styles.searchResultDescription}>Избранное</Text>
+                  </View>
+                  <Image
+                    source={StarFilled}
+                    style={styles.favoriteResultIcon}
+                    tintColor={styles.favoriteResultIcon.tintColor}
+                    contentFit="contain"
+                  />
+                </Pressable>
+              ))}
+
+              {cities?.length === 0 && (
                 <Text style={styles.searchEmpty}>Ничего не найдено</Text>
               )}
 
-              {cities.length > 0 && cities.map(city => (
+              {cities && cities.filter(city => !isFavorite(city)).map(city => (
                 <Pressable
                   key={city.id}
                   onPress={() => selectCity(city)}
@@ -316,7 +411,7 @@ export default function Index() {
           </View>
         )}
 
-        {!isWeatherLoading && isOpen && cities && (
+        {!isWeatherLoading && isOpen && (cities !== null || (favoriteCities && favoriteCities.length > 0)) && (
           <Pressable style={styles.searchBackdrop} onPress={() => setIsOpen(false)} />
         )}
 
@@ -340,7 +435,13 @@ export default function Index() {
 
         {!isWeatherLoading && !isWeatherLoadError && weather && (
           <>
-            <WeatherCard city={selectedCity?.name} current={weather.current} />
+            <WeatherCard
+              city={selectedCity?.name}
+              current={weather.current}
+              isFavorite={!!selectedCity && isFavorite(selectedCity)}
+              showFavoriteButton={selectedCity?.id !== undefined}
+              onChangeFavorite={changeFavorite}
+            />
             <WeatherForecast daily={weather.daily} />
           </>
         )}
