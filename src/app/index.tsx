@@ -1,10 +1,21 @@
 import { Cloud, CloudRain, CloudSun, Droplets, Gauge, Search, Sun, Wind } from '@/assets/icons'
+import { showMessage } from '@/helpers'
 import { useStyles } from '@/hooks/useStyles'
 import { getCities, type City } from '@/services/weather.api'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Image } from 'expo-image'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, TextInput, ToastAndroid, View } from 'react-native'
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+
+const defaultCity: City = {
+  id: 524901,
+  name: 'Москва',
+  latitude: 55.75204,
+  longitude: 37.61781,
+  country: 'Россия',
+  admin1: 'Москва'
+}
 
 export default function Index() {
   const styles = useStyles((colors) => ({
@@ -13,18 +24,10 @@ export default function Index() {
       backgroundColor: colors.background
     },
     scroll: {
-      flex: 1,
-      marginTop: 76
-    },
-    weatherContent: {
-      gap: 24,
-      paddingBottom: 24
-    },
-    body: {
       flex: 1
     },
     content: {
-      flex: 1,
+      minHeight: '100%',
       width: '100%',
       maxWidth: 600,
       alignSelf: 'center',
@@ -37,16 +40,9 @@ export default function Index() {
       color: colors.text
     },
     search: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
+      position: 'relative',
+      justifyContent: 'center',
       zIndex: 2
-    },
-    searchField: {
-      height: 52,
-      justifyContent: 'center'
     },
     searchBackdrop: {
       position: 'absolute',
@@ -57,9 +53,10 @@ export default function Index() {
       zIndex: 1
     },
     searchResults: {
-      marginTop: 8,
-      maxHeight: 280,
-      flexShrink: 1,
+      position: 'absolute',
+      left: 24,
+      right: 24,
+      zIndex: 3,
       borderRadius: 20,
       overflow: 'hidden',
       backgroundColor: colors.surface,
@@ -258,6 +255,8 @@ export default function Index() {
   const [search, setSearch] = useState('')
   const [cities, setCities] = useState<City[] | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const [selectedCity, setSelectedCity] = useState<City | null>(null)
+  const [searchBottom, setSearchBottom] = useState(0)
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -283,7 +282,7 @@ export default function Index() {
       }
       catch {
         if (searchTimerRef.current === timer) {
-          ToastAndroid.show('Не удалось загрузить города. Попробуйте позже', ToastAndroid.SHORT)
+          showMessage('Не удалось загрузить города. Попробуйте позже')
         }
       }
       finally {
@@ -295,6 +294,40 @@ export default function Index() {
 
     searchTimerRef.current = timer
   }
+
+  async function selectCity(city: City) {
+    try {
+      await AsyncStorage.setItem('city', JSON.stringify(city))
+      setSelectedCity(city)
+      setSearch(city.name)
+      setIsOpen(false)
+    }
+    catch {
+      showMessage('Не удалось сохранить выбранный город. Попробуйте позже')
+    }
+  }
+
+  useEffect(() => {
+    async function loadCity() {
+      try {
+        const data = await AsyncStorage.getItem('city')
+
+        if (data) {
+          const city: City = JSON.parse(data)
+          setSelectedCity(city)
+        }
+        else {
+          setSelectedCity(defaultCity)
+        }
+      }
+      catch {
+        setSelectedCity(defaultCity)
+        showMessage('Не удалось загрузить выбранный город. Попробуйте позже')
+      }
+    }
+
+    loadCity()
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -350,110 +383,111 @@ export default function Index() {
     { title: 'Давление', value: weather.pressure, unit: 'мм рт. ст.', icon: Gauge }
   ]
 
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled
+      >
         <Text style={styles.title}>Погода</Text>
 
-        <View style={styles.body}>
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.weatherContent}
-            keyboardShouldPersistTaps="always"
-            scrollEnabled={!(isOpen && cities)}
-          >
-            <View style={styles.weather}>
-              <Text style={styles.city}>{weather.city}</Text>
-              <Text style={styles.weatherDate}>{weather.date}</Text>
-              <View style={styles.weatherMain}>
-                <View style={styles.weatherInfo}>
-                  <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
-                  <Text style={styles.weatherDescription}>{weather.description}</Text>
-                </View>
-                <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
-              </View>
-              <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
-            </View>
-
-            <View style={styles.details}>
-              {weatherDetails.map(detail => (
-                <View key={detail.title} style={styles.detail}>
-                  <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
-                  <Text style={styles.detailTitle}>{detail.title}</Text>
-                  <Text style={styles.detailValue}>{detail.value}</Text>
-                  <Text style={styles.detailUnit}>{detail.unit}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.forecast}>
-              <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
-              <View style={styles.forecastHeader}>
-                <Text style={styles.forecastMaxLabel}>Макс.</Text>
-                <Text style={styles.forecastMinLabel}>Мин.</Text>
-              </View>
-              {forecast.map(day => (
-                <View key={day.date} style={styles.forecastDay}>
-                  <View style={styles.forecastInfo}>
-                    <Text style={styles.forecastDayTitle}>{day.title}</Text>
-                    <Text style={styles.forecastDescription}>{day.description}</Text>
-                  </View>
-                  <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
-                  <View style={styles.forecastTemperatures}>
-                    <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
-                    <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-          {isOpen && cities && (
-            <Pressable style={styles.searchBackdrop} onPress={() => setIsOpen(false)} />
-          )}
-
-          <View style={styles.search} pointerEvents="box-none">
-            <View style={styles.searchField}>
-              <TextInput
-                value={search}
-                onChangeText={searchCities}
-                onFocus={() => setIsOpen(true)}
-                onPressIn={() => setIsOpen(true)}
-                style={styles.searchInput}
-                placeholder="Название города"
-                placeholderTextColor={styles.placeholder.color}
-                returnKeyType="search"
-              />
-              <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
-            </View>
-
-            {isOpen && cities && (
-              <View style={styles.searchResults}>
-                <ScrollView style={styles.searchResultsScroll} keyboardShouldPersistTaps="always" nestedScrollEnabled>
-                  {cities.length === 0 && (
-                    <Text style={styles.searchEmpty}>Ничего не найдено</Text>
-                  )}
-
-                  {cities.length > 0 && cities.map(city => (
-                    <Pressable
-                      key={city.id}
-                      style={({ pressed }) => [styles.searchResult, pressed && styles.buttonPressed]}
-                    >
-                      <Text style={styles.searchResultTitle}>{city.name}</Text>
-                      <Text style={styles.searchResultDescription}>
-                        {city.admin1}
-                        {city.admin1 && city.country && ', '}
-                        {city.country}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
+        <View
+          style={styles.search}
+          onLayout={event => setSearchBottom(event.nativeEvent.layout.y + event.nativeEvent.layout.height)}
+        >
+          <TextInput
+            value={search}
+            onChangeText={searchCities}
+            onFocus={() => setIsOpen(true)}
+            onPressIn={() => setIsOpen(true)}
+            style={styles.searchInput}
+            placeholder={'Название города'}
+            placeholderTextColor={styles.placeholder.color}
+            returnKeyType="search"
+          />
+          <Image source={Search} style={styles.searchIcon} tintColor={styles.searchIcon.tintColor} contentFit="contain" pointerEvents="none" />
         </View>
-      </View>
+
+        {isOpen && cities && (
+          <View style={[styles.searchResults, { top: searchBottom + 8 }]}>
+            <ScrollView
+              style={styles.searchResultsScroll}
+              keyboardShouldPersistTaps="always"
+              nestedScrollEnabled
+            >
+              {cities.length === 0 && (
+                <Text style={styles.searchEmpty}>Ничего не найдено</Text>
+              )}
+
+              {cities.length > 0 && cities.map(city => (
+                <Pressable
+                  key={city.id}
+                  onPress={() => selectCity(city)}
+                  style={({ pressed }) => [styles.searchResult, pressed && styles.buttonPressed]}
+                >
+                  <Text style={styles.searchResultTitle}>{city.name}</Text>
+                  <Text style={styles.searchResultDescription}>
+                    {city.admin1}
+                    {city.admin1 && city.country && ', '}
+                    {city.country}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {isOpen && cities && (
+          <Pressable style={styles.searchBackdrop} onPress={() => setIsOpen(false)} />
+        )}
+
+        <View style={styles.weather}>
+          <Text style={styles.city}>{weather.city}</Text>
+          <Text style={styles.weatherDate}>{weather.date}</Text>
+          <View style={styles.weatherMain}>
+            <View style={styles.weatherInfo}>
+              <Text style={styles.temperature}>{weather.temperature > 0 ? '+' : ''}{weather.temperature}°</Text>
+              <Text style={styles.weatherDescription}>{weather.description}</Text>
+            </View>
+            <Image source={weather.icon} style={styles.weatherIcon} tintColor={styles.weatherIcon.tintColor} contentFit="contain" />
+          </View>
+          <Text style={styles.weatherFeelsLike}>Ощущается как {weather.feelsLike > 0 ? '+' : ''}{weather.feelsLike}°</Text>
+        </View>
+
+        <View style={styles.details}>
+          {weatherDetails.map(detail => (
+            <View key={detail.title} style={styles.detail}>
+              <Image source={detail.icon} style={styles.detailIcon} tintColor={styles.detailIcon.tintColor} contentFit="contain" />
+              <Text style={styles.detailTitle}>{detail.title}</Text>
+              <Text style={styles.detailValue}>{detail.value}</Text>
+              <Text style={styles.detailUnit}>{detail.unit}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.forecast}>
+          <Text style={styles.forecastTitle}>Прогноз на 3 дня</Text>
+          <View style={styles.forecastHeader}>
+            <Text style={styles.forecastMaxLabel}>Макс.</Text>
+            <Text style={styles.forecastMinLabel}>Мин.</Text>
+          </View>
+          {forecast.map(day => (
+            <View key={day.date} style={styles.forecastDay}>
+              <View style={styles.forecastInfo}>
+                <Text style={styles.forecastDayTitle}>{day.title}</Text>
+                <Text style={styles.forecastDescription}>{day.description}</Text>
+              </View>
+              <Image source={day.icon} style={styles.forecastIcon} tintColor={styles.forecastIcon.tintColor} contentFit="contain" />
+              <View style={styles.forecastTemperatures}>
+                <Text style={styles.forecastMax}>{day.temperatureMax > 0 ? '+' : ''}{day.temperatureMax}°</Text>
+                <Text style={styles.forecastMin}>{day.temperatureMin > 0 ? '+' : ''}{day.temperatureMin}°</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }
